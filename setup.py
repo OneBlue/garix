@@ -9,7 +9,7 @@ setup(
         },
     install_requires=[
         'Flask>=0.12.2',
-        'RPi.GPIO==0.7.1a4',
+        'rpi-lgpio==0.6',
         'click==8.1.7'
         ]
     )
