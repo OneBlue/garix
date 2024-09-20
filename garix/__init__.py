@@ -5,6 +5,7 @@ import traceback
 import os
 import time
 import json
+import subprocess
 
 from threading import Event, Thread, Lock
 from flask import Flask, Response
@@ -36,7 +37,7 @@ def apply_leds(state: list):
             fd.write(state)
 
 class StateMachine:
-    def __init__(self, pin: int, delay: float, open_leds: list, closed_leds: list, open_state: str, closed_state: str):
+    def __init__(self, pin: int, delay: float, open_leds: list, closed_leds: list, open_state: str, closed_state: str, hook: str):
         self.event = Event()
         self.mutex = Lock()
         self.last_transition = None
@@ -48,6 +49,7 @@ class StateMachine:
         self.closed_leds = closed_leds
         self.open_state = open_state
         self.closed_state = closed_state
+        self.hook = hook
 
     def map_state(self, state: bool) -> str:
         if state is None:
@@ -58,9 +60,22 @@ class StateMachine:
     def transition(self, new_state: int):
         print(f'Transition: {self.map_state(self.state)} -> {self.map_state(new_state)}')
 
+        now = round(time.time())
+        if self.hook is not None:
+            try:
+                env = {
+                        'new_state': str(self.map_state(new_state)),
+                        'previous_state': str(self.map_state(self.state)),
+                        'ts': str(now)
+                      }
+
+                subprocess.run(self.hook, check=True, env=env)
+            except:
+                print(f'Hook "{self.hook}" failed: {traceback.format_exc()}')
+
         with self.mutex:
             self.state = new_state
-            self.last_transition = time.time()
+            self.last_transition = now
 
         if self.state is True and self.closed_leds is not None:
             apply_leds(self.closed_leds)
@@ -133,13 +148,20 @@ def parse_leds_arg(arg: str) -> list:
 @click.option('--poll-delay', default=1, type=float)
 @click.option('--open-leds', default=None)
 @click.option('--closed-leds', default=None)
-def live(pin: int, poll_delay: float, open_leds: str, closed_leds: str):
+@click.option('--open-state', default='Opened')
+@click.option('--closed-state', default='Closed')
+@click.option('--hook', default=None)
+def live(pin: int, poll_delay: float, open_leds: str, closed_leds: str, open_state: str, closed_state: str, hook: str):
+
 
     print('Running in live mode')
     with StateMachine(pin=pin,
                       delay=poll_delay,
                       open_leds=parse_leds_arg(open_leds),
-                      closed_leds=parse_leds_arg(closed_leds)) as m:
+                      closed_leds=parse_leds_arg(closed_leds),
+                      open_state=open_state,
+                      closed_state=closed_state,
+                      hook=hook) as m:
 
         input('Press a key to exit')
 
@@ -151,16 +173,18 @@ def live(pin: int, poll_delay: float, open_leds: str, closed_leds: str):
 @click.option('--poll-delay', default=1, type=float)
 @click.option('--open-leds', default=None)
 @click.option('--closed-leds', default=None)
-@click.option('--open-state', default='open')
-@click.option('--closed-state', default='closed')
-def serve(pin: int, address: str, port: int, poll_delay: float, open_leds: str, closed_leds: str, open_state: str, closed_state: str):
+@click.option('--open-state', default='Opened')
+@click.option('--closed-state', default='Closed')
+@click.option('--hook', default=None)
+def serve(pin: int, address: str, port: int, poll_delay: float, open_leds: str, closed_leds: str, open_state: str, closed_state: str, hook: str):
 
     with StateMachine(pin=pin,
                       delay=poll_delay,
                       open_leds=parse_leds_arg(open_leds),
                       closed_leds=parse_leds_arg(closed_leds),
                       open_state=open_state,
-                      closed_state=closed_state) as machine:
+                      closed_state=closed_state,
+                      hook=hook) as machine:
 
         global state_machine
         state_machine = machine

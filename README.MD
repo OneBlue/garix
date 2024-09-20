@@ -21,7 +21,7 @@ $ pip install -e .
 Start the web server via:
 
 ```
-$ garix serve <pin> 127.0.0.1 80 [--poll-delay <seconds>] [--open-leds <led-state>] [--closed-leds <led-state>]
+$ garix serve <pin> 127.0.0.1 80 [--poll-delay <seconds>] [--open-leds <led-state>] [--closed-leds <led-state>] [--hook <hook command>]
 ```
 
 Then call via:
