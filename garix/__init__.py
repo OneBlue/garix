@@ -18,6 +18,9 @@ LEDS = ['/sys/class/leds/PWR/brightness', '/sys/class/leds/ACT/brightness']
 debug_mode = False
 state_machine = None
 
+import functools
+print = functools.partial(print, flush=True)
+
 @click.group()
 @click.option('--debug', is_flag=True)
 def cli(debug: bool):
@@ -121,11 +124,11 @@ class StateMachine:
                 time.sleep(0.1)
                 self.relay_pin.off()
 
-        if not self.state_change_event.wait(self.state_change_timeout):
-            print(f'Timed out waiting for door to reach state "{expected_state}", setting error state')
+            if not self.state_change_event.wait(self.state_change_timeout):
+                print(f'Timed out waiting for door to reach state "{expected_state}", setting error state')
 
-            self.error_state = True
-            raise HttpException(500, f'Timed out waiting for state: "{new_state}"')
+                self.error_state = True
+                raise HttpException(500, f'Timed out waiting for state: "{new_state}"')
 
         end_ts = time.time() - start_ts
         return json.dumps({'state': new_state, 'ts': self.last_transition, 'transition_time': end_ts})
