@@ -110,10 +110,10 @@ class StateMachine:
         with self.state_change_mutex:
             with self.mutex:
                 if self.state == expected_state:
-                    return json.dumps({'state': new_state, 'ts': self.last_transition, 'transition_time': None})
+                    return json.dumps({'state': new_state, 'ts': self.last_transition, 'transition_time': None, 'error': False})
 
                 if self.error_state:
-                    raise HttpException(500, f'Error state is set, refusing transition')
+                    raise HttpException(419, f'Error state is set, refusing transition')
 
                 self.state_change_event.clear()
 
@@ -131,7 +131,7 @@ class StateMachine:
                 raise HttpException(500, f'Timed out waiting for state: "{new_state}"')
 
         end_ts = time.time() - start_ts
-        return json.dumps({'state': new_state, 'ts': self.last_transition, 'transition_time': end_ts})
+        return json.dumps({'state': new_state, 'ts': self.last_transition, 'transition_time': end_ts, 'error': False})
 
     def run(self):
         try:
@@ -270,6 +270,12 @@ def transition():
         'Missing state parameter', 400
 
     return state_machine.change_state(target_state), 200
+
+@app.route('/toggle', methods=['POST'])
+def toggle():
+    current_state, _, __ = state_machine.get_state()
+    print(f'State: {current_state}')
+    return state_machine.change_state(state_machine.closed_state if current_state == state_machine.open_state else state_machine.open_state), 200
 
 @app.route('/json', methods=['GET'])
 def get_json():
