@@ -121,7 +121,7 @@ class StateMachine:
                 self.relay_pin.on()
                 start_ts = time.time()
 
-                time.sleep(0.1)
+                time.sleep(0.5)
                 self.relay_pin.off()
 
             if not self.state_change_event.wait(self.state_change_timeout):
